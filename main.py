@@ -20,13 +20,14 @@ def init_db():
     with closing(sqlite3.connect(DB_NAME)) as conn:
         with conn:
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS prices (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    metal TEXT NOT NULL,
-                    price REAL NOT NULL,
-                    yard TEXT NOT NULL
-                )
-            """)
+CREATE TABLE IF NOT EXISTS prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    metal TEXT NOT NULL,
+    price REAL NOT NULL,
+    yard TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+""")
 
 init_db()
 
@@ -113,7 +114,11 @@ def market():
 @app.get("/prices")
 def get_prices():
     with closing(sqlite3.connect(DB_NAME)) as conn:
-        cursor = conn.execute("SELECT id, metal, price, yard FROM prices ORDER BY id DESC")
+        cursor = conn.execute("""
+            SELECT id, metal, price, yard, created_at 
+            FROM prices 
+            ORDER BY created_at DESC
+        """)
         rows = cursor.fetchall()
 
     return [
@@ -121,10 +126,12 @@ def get_prices():
             "id": row[0],
             "metal": row[1],
             "price": row[2],
-            "yard": row[3]
+            "yard": row[3],
+            "created_at": row[4]
         }
         for row in rows
-    ]    
+    ]
+    
 
 # Yards
 @app.get("/yards")
