@@ -108,8 +108,9 @@ def market():
         conn.row_factory = sqlite3.Row
         rows = conn.execute("SELECT metal, price, yard FROM prices").fetchall()
         manual_entries = [dict(row) for row in rows]
-
-    return {“status”: ”saved”}
+        
+     return {"status": "saved"}
+    
 
 # Yards
 @app.get("/yards")
