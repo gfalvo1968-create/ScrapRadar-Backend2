@@ -110,7 +110,21 @@ def market():
         manual_entries = [dict(row) for row in rows]
         return {"status": "saved"}
      
-    
+@app.get("/prices")
+def get_prices():
+    with closing(sqlite3.connect(DB_NAME)) as conn:
+        cursor = conn.execute("SELECT id, metal, price, yard FROM prices ORDER BY id DESC")
+        rows = cursor.fetchall()
+
+    return [
+        {
+            "id": row[0],
+            "metal": row[1],
+            "price": row[2],
+            "yard": row[3]
+        }
+        for row in rows
+    ]    
 
 # Yards
 @app.get("/yards")
