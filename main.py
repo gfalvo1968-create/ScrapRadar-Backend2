@@ -102,12 +102,15 @@ def market():
         return {"status": "saved"}
      
 @app.post("/add-price")
-def add_price(data: PriceEntry):
+def add_price(entry: PriceEntry):
     with closing(sqlite3.connect(DB_NAME)) as conn:
         with conn:
             conn.execute(
                 "INSERT INTO prices (metal, price, yard) VALUES (?, ?, ?)",
-                (data.metal, data.price, data.yard)
+                (entry.metal, entry.price, entry.yard)
+            )
+
+    return {"status": "saved"}
             
 @app.get("/history/{metal}")
 def history_by_metal(metal: str):
