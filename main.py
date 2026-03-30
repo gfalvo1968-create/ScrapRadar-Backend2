@@ -111,26 +111,23 @@ def add_price(entry: PriceEntry):
             )
 
     return {"status": "saved"}
-            
-@app.get("/history/{metal}")
-def history_by_metal(metal: str):
-    with closing(sqlite3.connect(DB_NAME)) as conn:
-        cursor = conn.execute("""
-            SELECT price, yard, created_at
-            FROM prices
-            WHERE LOWER(metal) = LOWER(?)
-            ORDER BY created_at ASC
-        """, (metal,))
-        rows = cursor.fetchall()
+            m
+@app.get("/history")
+def get_history():
+    import sqlite3
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT metal, price, yard FROM prices ORDER BY id DESC")
+    rows = cursor.fetchall()
+
+    conn.close()
 
     return [
-        {
-            "price": row[0],
-            "yard": row[1],
-            "created_at": row[2]
-        }
-        for row in rows
-    ]
+        {"metal": r[0], "price": r[1], "yard": r[2]}
+        for r in rows
+    ]c
                 
                 
 # Yards
