@@ -127,7 +127,7 @@ def get_history():
     return [
         {"metal": r[0], "price": r[1], "yard": r[2]}
         for r in rows
-    ]c
+    ]
                 
                 
 # Yards
