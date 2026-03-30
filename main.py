@@ -3,6 +3,12 @@ import yfinance as yf
 import numpy as np
 import sqlite3
 from contextlib import closing
+from pydantic import BaseModel
+
+class PriceEntry(BaseModel):
+    metal: str
+    price: float
+    yard: str
 
 print("Backend file loaded successfully")
 
@@ -20,14 +26,14 @@ def init_db():
     with closing(sqlite3.connect(DB_NAME)) as conn:
         with conn:
             conn.execute("""
-CREATE TABLE IF NOT EXISTS prices (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    metal TEXT NOT NULL,
-    price REAL NOT NULL,
-    yard TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)
-""")
+                CREATE TABLE IF NOT EXISTS prices (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    metal TEXT NOT NULL,
+                    price REAL NOT NULL,
+                    yard TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
 
 init_db()
 
@@ -111,28 +117,35 @@ def market():
         manual_entries = [dict(row) for row in rows]
         return {"status": "saved"}
      
-@app.get("/prices")
-def get_prices():
+@app.post("/add-price")
+def add_price(data: PriceEntry):
+    with closing(sqlite3.connect(DB_NAME)) as conn:
+        with conn:
+            conn.execute(
+                "INSERT INTO prices (metal, price, yard) VALUES (?, ?, ?)",
+                (data.metal, data.price, data.yard)
+            
+@app.get("/history/{metal}")
+def history_by_metal(metal: str):
     with closing(sqlite3.connect(DB_NAME)) as conn:
         cursor = conn.execute("""
-            SELECT id, metal, price, yard, created_at 
-            FROM prices 
-            ORDER BY created_at DESC
-        """)
+            SELECT price, yard, created_at
+            FROM prices
+            WHERE LOWER(metal) = LOWER(?)
+            ORDER BY created_at ASC
+        """, (metal,))
         rows = cursor.fetchall()
 
     return [
         {
-            "id": row[0],
-            "metal": row[1],
-            "price": row[2],
-            "yard": row[3],
-            "created_at": row[4]
+            "price": row[0],
+            "yard": row[1],
+            "created_at": row[2]
         }
         for row in rows
     ]
-    
-
+                
+                
 # Yards
 @app.get("/yards")
 def get_yards():
@@ -142,17 +155,23 @@ def get_yards():
 @app.get("/decision")
 def decision():
     with closing(sqlite3.connect(DB_NAME)) as conn:
-        conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT metal, price, yard FROM prices ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+        cursor = conn.execute("""
+            SELECT metal, price, yard, created_at
+            FROM prices
+            ORDER BY created_at DESC
+            LIMIT 3
+        """)
+        rows = cursor.fetchall()
 
-    if not row:
+    if not rows:
         return {"decision": "No data yet"}
 
-    latest = dict(row)
+    latest_price = rows[0][1]
 
-    if latest["price"] > 4:
+    if latest_price >= 4.0:
         return {"decision": "SELL NOW"}
-    else:
-        return {"decision": "HOLD"}
+
+    if len(rows) >= 2 and rows[0][1] > rows[1][1]:
+        return {"decision": "TRENDING UP, WATCH CLOSELY"}
+
+    return {"decision": "HOLD"}
