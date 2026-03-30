@@ -40,6 +40,12 @@ yards = [
     {"name": "Metro Scrap", "lat": 34.3, "lng": -78.7, "base_price": 2.30},
 ]
 
+from pydantic import BaseModel
+class PriceEntry(BaseModel):
+    metal: str
+    price: float
+    yard: str
+    
 # ------------------------
 # LIVE DATA FUNCTION
 # ------------------------
@@ -103,12 +109,7 @@ def market():
         rows = conn.execute("SELECT metal, price, yard FROM prices").fetchall()
         manual_entries = [dict(row) for row in rows]
 
-    return {
-        "current": copper_prices[-1],
-        "forecast": future,
-        "trend": trend,
-        "manual_entries": manual_entries
-    }
+    return {“status”:”saved”}
 
 # Yards
 @app.get("/yards")
