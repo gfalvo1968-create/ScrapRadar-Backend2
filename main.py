@@ -87,23 +87,7 @@ def home():
     return {"status": "scrapradar is live 🚀"}
 
 # Add manual price (Stage 1 core)
-@app.post("/add-price")
-def add_price(data: dict):
-    metal = data.get("metal")
-    price = data.get("price")
-    yard = data.get("yard")
 
-    if not metal or price is None or not yard:
-        return {"error": "metal, price, and yard are required"}
-
-    with closing(sqlite3.connect(DB_NAME)) as conn:
-        with conn:
-            conn.execute(
-                "INSERT INTO prices (metal, price, yard) VALUES (?, ?, ?)",
-                (metal, price, yard)
-            )
-
-    return {"status": "saved"}
 
 # Market data (combined)
 @app.get("/market")
