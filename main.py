@@ -12,7 +12,23 @@ app = FastAPI()
 # ------------------------
 # DATA STORAGE (Stage 1)
 # ------------------------
-manual_prices = []
+DB_NAME = "scrapradar.db"
+
+def init_db():
+    with closing(sqlite3.connect(DB_NAME)) as conn:
+        with conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS prices (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    metal TEXT NOT NULL,
+                    price REAL NOT NULL,
+                    yard TEXT NOT NULL
+                )
+            """)
+
+init_db()
+
+manual_prrice=[]
 
 # ------------------------
 # STATIC DATA
@@ -58,7 +74,20 @@ def home():
 # Add manual price (Stage 1 core)
 @app.post("/add-price")
 def add_price(data: dict):
-    manual_prices.append(data)
+    metal = data.get("metal")
+    price = data.get("price")
+    yard = data.get("yard")
+
+    if not metal or price is None or not yard:
+        return {"error": "metal, price, and yard are required"}
+
+    with closing(sqlite3.connect(DB_NAME)) as conn:
+        with conn:
+            conn.execute(
+                "INSERT INTO prices (metal, price, yard) VALUES (?, ?, ?)",
+                (metal, price, yard)
+            )
+
     return {"status": "saved"}
 
 # Market data (combined)
@@ -67,11 +96,16 @@ def market():
     copper_prices = get_copper_series()
     future, trend = predict_prices(copper_prices)
 
+    with closing(sqlite3.connect(DB_NAME)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("SELECT metal, price, yard FROM prices").fetchall()
+        manual_entries = [dict(row) for row in rows]
+
     return {
         "current": copper_prices[-1],
         "forecast": future,
         "trend": trend,
-        "manual_entries": manual_prices
+        "manual_entries": manual_entries
     }
 
 # Yards
@@ -82,12 +116,18 @@ def get_yards():
 # Decision logic
 @app.get("/decision")
 def decision():
-    if not manual_prices:
+    with closing(sqlite3.connect(DB_NAME)) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT metal, price, yard FROM prices ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+
+    if not row:
         return {"decision": "No data yet"}
 
-    latest = manual_prices[-1]
+    latest = dict(row)
 
-    if latest.get("price", 0) > 4:
+    if latest["price"] > 4:
         return {"decision": "SELL NOW"}
     else:
         return {"decision": "HOLD"}
