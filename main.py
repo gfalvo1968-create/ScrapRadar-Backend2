@@ -111,7 +111,7 @@ def add_price(entry: PriceEntry):
             )
 
     return {"status": "saved"}
-            m
+            
 @app.get("/history")
 def get_history():
     import sqlite3
