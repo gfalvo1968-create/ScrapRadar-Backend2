@@ -17,6 +17,10 @@ print("Backend file loaded successfully")
 # ------------------------
 app = FastAPI()
 
+@app.on_event("startup")
+def startup():
+    init_db()
+
 # ------------------------
 # DATA STORAGE (Stage 1)
 # ------------------------
