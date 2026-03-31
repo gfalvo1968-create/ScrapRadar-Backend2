@@ -17,7 +17,6 @@ class PriceEntry(BaseModel):
     price: float
     yard: str
 
-init_db()
 
 def init_db():
     with closing(sqlite3.connect(DB_NAME)) as conn:
