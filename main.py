@@ -34,11 +34,6 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-
-init_db()
-
-manual_prrice=[]
-
 # ------------------------
 # STATIC DATA
 # ------------------------
