@@ -17,13 +17,12 @@ print("Backend file loaded successfully")
 # ------------------------
 app = FastAPI()
 
-@app.on_event("startup")
-def startup():
-    init_db()
 
 # ------------------------
 # DATA STORAGE (Stage 1)
 # ------------------------
+
+
 DB_NAME = "scrapradar.db"
 
 def init_db():
