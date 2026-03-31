@@ -1,29 +1,22 @@
 from fastapi import FastAPI
+from pydantic import BaseModel
 import yfinance as yf
 import numpy as np
 import sqlite3
 from contextlib import closing
-from pydantic import BaseModel
+
+print("Backend file loaded successfully")
+
+app = FastAPI()
+
+DB_NAME = "scrapradar.db"
+
 
 class PriceEntry(BaseModel):
     metal: str
     price: float
     yard: str
 
-print("Backend file loaded successfully")
-
-# ------------------------
-# APP SETUP
-# ------------------------
-app = FastAPI()
-
-
-# ------------------------
-# DATA STORAGE (Stage 1)
-# ------------------------
-
-
-DB_NAME = "scrapradar.db"
 
 def init_db():
     with closing(sqlite3.connect(DB_NAME)) as conn:
@@ -37,57 +30,49 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-# ------------------------
-# STATIC DATA
-# ------------------------
+
+
+init_db()
+
 yards = [
     {"name": "Langley Recycling", "lat": 34.5, "lng": -78.8, "base_price": 2.50},
     {"name": "Metro Scrap", "lat": 34.3, "lng": -78.7, "base_price": 2.30},
 ]
 
-from pydantic import BaseModel
-class PriceEntry(BaseModel):
-    metal: str
-    price: float
-    yard: str
-    
-# ------------------------
-# LIVE DATA FUNCTION
-# ------------------------
+
 def get_copper_series():
     copper = yf.Ticker("HG=F")
     data = copper.history(period="7d")["Close"]
-    return list(data)
+    return [float(x) for x in data.tolist()]
 
-# ------------------------
-# SIMPLE TREND LOGIC
-# ------------------------
+
 def predict_prices(prices):
+    if not prices:
+        return [], 0.0
+
+    if len(prices) == 1:
+        return [prices[0], prices[0], prices[0]], 0.0
+
     x = np.arange(len(prices))
-    y = np.array(prices)
+    y = np.array(prices, dtype=float)
 
     coeffs = np.polyfit(x, y, 1)
-    trend = coeffs[0]
+    trend = float(coeffs[0])
 
     future = []
+    last_price = float(y[-1])
+
     for i in range(1, 4):
-        future.append(float(y[-1] + trend * i))
+        future.append(last_price + trend * i)
 
     return future, trend
 
-# ------------------------
-# ROUTES
-# ------------------------
 
-# Home
 @app.get("/")
 def home():
-    return {"status": "scrapradar is live 🚀"}
-
-# Add manual price (Stage 1 core)
+    return {"status": "ScrapRadar is live"}
 
 
-# Market data (combined)
 @app.get("/market")
 def market():
     copper_prices = get_copper_series()
@@ -95,88 +80,90 @@ def market():
 
     with closing(sqlite3.connect(DB_NAME)) as conn:
         conn.row_factory = sqlite3.Row
-        rows = conn.execute("SELECT metal, price, yard FROM prices").fetchall()
+        rows = conn.execute("""
+            SELECT metal, price, yard, created_at
+            FROM prices
+            ORDER BY created_at DESC
+        """).fetchall()
+
         manual_entries = [dict(row) for row in rows]
-        return {"status": "saved"}
-     
+
+    current_price = copper_prices[-1] if copper_prices else None
+
+    return {
+        "current": current_price,
+        "forecast": future,
+        "trend": trend,
+        "manual_entries": manual_entries
+    }
+
+
 @app.post("/add-price")
 def add_price(entry: PriceEntry):
     with closing(sqlite3.connect(DB_NAME)) as conn:
         with conn:
             conn.execute(
-                "INSERT INTO prices (metal, price, yard) VALUES (?, ?, ?)",
+                """
+                INSERT INTO prices (metal, price, yard)
+                VALUES (?, ?, ?)
+                """,
                 (entry.metal, entry.price, entry.yard)
             )
 
     return {"status": "saved"}
-            
+
+
 @app.get("/history")
 def get_history():
     with closing(sqlite3.connect(DB_NAME)) as conn:
-        cursor = conn.execute("""
-            SELECT metal, price, yard, created_at
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("""
+            SELECT id, metal, price, yard, created_at
             FROM prices
             ORDER BY created_at DESC
-        """)
-        rows = cursor.fetchall()
+        """).fetchall()
 
-    return [
-        {
-            "metal": r[0],
-            "price": r[1],
-            "yard": r[2],
-            "created_at": r[3]
-        }
-        for r in rows
-    ]
+    return [dict(row) for row in rows]
+
+
 @app.get("/history/{metal}")
 def get_history_by_metal(metal: str):
     with closing(sqlite3.connect(DB_NAME)) as conn:
-        cursor = conn.execute("""
-            SELECT metal, price, yard, created_at
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute("""
+            SELECT id, metal, price, yard, created_at
             FROM prices
             WHERE LOWER(metal) = LOWER(?)
             ORDER BY created_at DESC
-        """, (metal,))
-        rows = cursor.fetchall()
+        """, (metal,)).fetchall()
 
-    return [
-        {
-            "metal": r[0],
-            "price": r[1],
-            "yard": r[2],
-            "created_at": r[3]
-        }
-        for r in rows
-    ]
+    return [dict(row) for row in rows]
 
-                
-# Yards
+
 @app.get("/yards")
 def get_yards():
     return yards
 
-# Decision logic
+
 @app.get("/decision")
 def decision():
     with closing(sqlite3.connect(DB_NAME)) as conn:
-        cursor = conn.execute("""
+        conn.row_factory = sqlite3.Row
+        latest = conn.execute("""
             SELECT metal, price, yard, created_at
             FROM prices
             ORDER BY created_at DESC
-            LIMIT 3
-        """)
-        rows = cursor.fetchall()
+            LIMIT 1
+        """).fetchone()
 
-    if not rows:
+    if latest is None:
         return {"decision": "No data yet"}
 
-    latest_price = rows[0][1]
+    latest_price = float(latest["price"])
 
     if latest_price >= 4.0:
         return {"decision": "SELL NOW"}
-
-    if len(rows) >= 2 and rows[0][1] > rows[1][1]:
-        return {"decision": "TRENDING UP, WATCH CLOSELY"}
-
-    return {"decision": "HOLD"}
+    elif latest_price >= 3.0:
+        return {"decision": "WATCH CLOSELY"}
+    else:
+        return {"decision": "HOLD"}
