@@ -33,6 +33,8 @@ def init_db():
 init_db()
 
 
+from pydantic import BaseModel
+
 class PriceEntry(BaseModel):
     metal: str
     price: float
