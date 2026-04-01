@@ -148,6 +148,12 @@ def home():
             <pre id="historyBox">Press button to load history...</pre>
         </div>
 
+            <div class="card">
+            <h2>Price Chart</h2>
+            <button onclick="loadChart()">Load Chart</button>
+            <canvas id="priceChart" height="120"></canvas>
+         </div>
+
         <script>
             async function loadMarket() {
                 const res = await fetch('/market');
