@@ -4,6 +4,7 @@ import yfinance as yf
 import numpy as np
 import sqlite3
 from contextlib import closing
+from fastapi.responses import HTMLResponse
 
 print("Backend file loaded successfully")
 
