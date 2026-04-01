@@ -10,8 +10,6 @@ print("Backend file loaded successfully")
 
 app = FastAPI()
 
-DB_NAME = "scrapradar.db"
-
 class PriceEntry(BaseModel):
     metal: str
     price: float
@@ -31,14 +29,6 @@ def init_db():
             """)
 
 init_db()
-
-
-from pydantic import BaseModel
-
-class PriceEntry(BaseModel):
-    metal: str
-    price: float
-    yard: str
 
 
 
