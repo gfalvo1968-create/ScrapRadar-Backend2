@@ -155,21 +155,40 @@ def get_yards():
 def decision():
     with closing(sqlite3.connect(DB_NAME)) as conn:
         conn.row_factory = sqlite3.Row
-        latest = conn.execute("""
-            SELECT metal, price, yard, created_at
+        rows = conn.execute("""
+            SELECT price, created_at
             FROM prices
             ORDER BY created_at DESC
-            LIMIT 1
-        """).fetchone()
+            LIMIT 3
+        """).fetchall()
 
-    if latest is None:
+    if not rows:
         return {"decision": "No data yet"}
 
-    latest_price = float(latest["price"])
+    prices = [float(row["price"]) for row in rows]
 
-    if latest_price >= 4.0:
-        return {"decision": "SELL NOW"}
-    elif latest_price >= 3.0:
-        return {"decision": "WATCH CLOSELY"}
+    if len(prices) == 1:
+        latest = prices[0]
+        if latest >= 4.0:
+            return {"decision": "SELL NOW", "latest_price": latest, "change": 0.0}
+        elif latest >= 3.0:
+            return {"decision": "WATCH CLOSELY", "latest_price": latest, "change": 0.0}
+        else:
+            return {"decision": "HOLD", "latest_price": latest, "change": 0.0}
+
+    newest = prices[0]
+    oldest = prices[-1]
+    change = newest - oldest
+
+    if change <= -0.10:
+        result = "SELL NOW"
+    elif change >= 0.10:
+        result = "HOLD"
     else:
-        return {"decision": "HOLD"}
+        result = "WATCH CLOSELY"
+
+    return {
+        "decision": result,
+        "latest_price": newest,
+        "change": round(change, 2)
+    }
