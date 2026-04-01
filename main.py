@@ -10,6 +10,8 @@ print("Backend file loaded successfully")
 
 app = FastAPI()
 
+DB_NAME = "scrapradar.db"
+
 class PriceEntry(BaseModel):
     metal: str
     price: float
