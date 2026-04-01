@@ -11,12 +11,10 @@ app = FastAPI()
 
 DB_NAME = "scrapradar.db"
 
-
 class PriceEntry(BaseModel):
     metal: str
     price: float
     yard: str
-
 
 def init_db():
     with closing(sqlite3.connect(DB_NAME)) as conn:
@@ -31,8 +29,16 @@ def init_db():
                 )
             """)
 
-
 init_db()
+
+
+class PriceEntry(BaseModel):
+    metal: str
+    price: float
+    yard: str
+
+
+
 
 yards = [
     {"name": "Langley Recycling", "lat": 34.5, "lng": -78.8, "base_price": 2.50},
