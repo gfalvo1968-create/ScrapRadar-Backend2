@@ -74,9 +74,124 @@ def predict_prices(prices):
     return future, trend
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def home():
-    return {"status": "ScrapRadar is live"}
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>ScrapRadar</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 20px;
+                background: #f4f6f8;
+                color: #222;
+            }
+            h1 {
+                margin-bottom: 10px;
+            }
+            .card {
+                background: white;
+                padding: 16px;
+                margin-bottom: 16px;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            }
+            input, button {
+                padding: 10px;
+                margin: 6px 0;
+                width: 100%;
+                max-width: 300px;
+                display: block;
+            }
+            button {
+                background: #1f6feb;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+            }
+            button:hover {
+                opacity: 0.92;
+            }
+            pre {
+                background: #111;
+                color: #0f0;
+                padding: 12px;
+                border-radius: 8px;
+                overflow-x: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>ScrapRadar Dashboard</h1>
+
+        <div class="card">
+            <h2>Current Market</h2>
+            <button onclick="loadMarket()">Load Market</button>
+            <pre id="marketBox">Press button to load market data...</pre>
+        </div>
+
+        <div class="card">
+            <h2>Decision</h2>
+            <button onclick="loadDecision()">Get Decision</button>
+            <pre id="decisionBox">Press button to load decision...</pre>
+        </div>
+
+        <div class="card">
+            <h2>Add Price</h2>
+            <input id="metal" placeholder="Metal (example: copper)" />
+            <input id="price" placeholder="Price (example: 4.25)" type="number" step="0.01" />
+            <input id="yard" placeholder="Yard (example: Metro Scrap)" />
+            <button onclick="addPrice()">Save Price</button>
+            <pre id="addBox">Waiting for input...</pre>
+        </div>
+
+        <div class="card">
+            <h2>History</h2>
+            <button onclick="loadHistory()">Load History</button>
+            <pre id="historyBox">Press button to load history...</pre>
+        </div>
+
+        <script>
+            async function loadMarket() {
+                const res = await fetch('/market');
+                const data = await res.json();
+                document.getElementById('marketBox').textContent = JSON.stringify(data, null, 2);
+            }
+
+            async function loadDecision() {
+                const res = await fetch('/decision');
+                const data = await res.json();
+                document.getElementById('decisionBox').textContent = JSON.stringify(data, null, 2);
+            }
+
+            async function loadHistory() {
+                const res = await fetch('/history');
+                const data = await res.json();
+                document.getElementById('historyBox').textContent = JSON.stringify(data, null, 2);
+            }
+
+            async function addPrice() {
+                const metal = document.getElementById('metal').value;
+                const price = parseFloat(document.getElementById('price').value);
+                const yard = document.getElementById('yard').value;
+
+                const res = await fetch('/add-price', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ metal, price, yard })
+                });
+
+                const data = await res.json();
+                document.getElementById('addBox').textContent = JSON.stringify(data, null, 2);
+            }
+        </script>
+    </body>
+    </html>
+    """
 
 
 @app.get("/market")
